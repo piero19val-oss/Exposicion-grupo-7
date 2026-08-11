@@ -1,1301 +1,1062 @@
 <!DOCTYPE html>
-
 <html lang="es">
-
 <head>
-
 <meta charset="UTF-8">
-
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>BUG HUNTER QA</title>
-
-
 <style>
-
-
-*{
-
-    margin:0;
-
-    padding:0;
-
-    box-sizing:border-box;
-
-    font-family:Arial, Helvetica, sans-serif;
-
-}
-
-
-body{
-
-    height:100vh;
-
-    background:#111827;
-
+  :root{
+    --bg-dark:#05070d;
+    --panel:#0c1220;
+    --panel-border:#1e2a44;
+    --cyan:#00e5ff;
+    --purple:#9b5cff;
+    --blue:#3b6dff;
+    --green:#39ff8a;
+    --yellow:#ffd93b;
+    --red:#ff4b5c;
+    --text:#e8f1ff;
+    --text-dim:#7d8fb3;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;
+    width:100%;height:100%;
+    background:var(--bg-dark);
+    color:var(--text);
+    font-family:"Courier New", Consolas, monospace;
+    overflow:hidden;
+    -webkit-tap-highlight-color: transparent;
+    user-select:none;
+  }
+  #app{
+    position:relative;
+    width:100%;
+    height:100%;
     display:flex;
-
-    justify-content:center;
-
     align-items:center;
+    justify-content:center;
+  }
+  .screen{
+    width:100%;
+    height:100%;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    position:relative;
+  }
+  .screen.active{display:flex;}
 
-    color:white;
+  /* scanline overlay */
+  .scanlines{
+    pointer-events:none;
+    position:fixed;
+    inset:0;
+    background:repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0) 0px,
+      rgba(0,0,0,0) 2px,
+      rgba(0,0,0,0.10) 3px
+    );
+    mix-blend-mode:multiply;
+    z-index:999;
+  }
 
-}
-
-
-
-#game{
-
-    width:700px;
-
-    background:#1f2937;
-
-    border:5px solid #00ffff;
-
-    border-radius:20px;
-
-    padding:30px;
-
+  /* ---------- START SCREEN ---------- */
+  #startScreen{
+    background:
+      radial-gradient(circle at 20% 20%, rgba(59,109,255,0.20), transparent 40%),
+      radial-gradient(circle at 80% 80%, rgba(155,92,255,0.20), transparent 40%),
+      var(--bg-dark);
     text-align:center;
-
-    box-shadow:0 0 30px #00ffff;
-
-}
-
-
-
-h1{
-
-    color:#00ffff;
-
+    padding:20px;
+  }
+  .title-box{
+    border:2px solid var(--cyan);
+    background:var(--panel);
+    padding:28px 24px;
+    box-shadow:0 0 24px rgba(0,229,255,0.35), inset 0 0 20px rgba(0,229,255,0.08);
+    max-width:480px;
+    width:100%;
+  }
+  .glitch-title{
+    font-size:26px;
+    letter-spacing:2px;
+    color:var(--cyan);
+    text-shadow:2px 0 var(--purple), -2px 0 var(--blue);
+    margin:0 0 6px 0;
+  }
+  .subtitle{
+    color:var(--text-dim);
+    font-size:12px;
     margin-bottom:20px;
-
-}
-
-
-
-.stats{
-
-    display:flex;
-
-    justify-content:space-around;
-
-    margin-bottom:25px;
-
-}
-
-
-
-.stat{
-
-    background:#111;
-
-    padding:15px;
-
-    border-radius:10px;
-
-}
-
-
-
-#questionBox{
-
-    background:#111827;
-
-    padding:25px;
-
-    border-radius:15px;
-
-    margin-bottom:20px;
-
-}
-
-
-
-#question{
-
-    font-size:22px;
-
-    margin-bottom:20px;
-
-}
-
-
-
-.answers button{
-
-    width:90%;
-
-    margin:8px;
-
-    padding:15px;
-
-    border:none;
-
-    border-radius:10px;
-
+    letter-spacing:1px;
+  }
+  .bug-icon{font-size:40px;margin-bottom:6px;}
+  #playerNameInput{
+    width:100%;
+    padding:10px;
+    background:#050912;
+    border:2px solid var(--panel-border);
+    color:var(--text);
+    font-family:inherit;
+    font-size:14px;
+    margin:14px 0;
+    outline:none;
+  }
+  #playerNameInput:focus{border-color:var(--cyan);}
+  .btn{
+    display:inline-block;
+    padding:12px 22px;
+    background:linear-gradient(180deg, var(--blue), #1c3aa8);
+    border:2px solid var(--cyan);
+    color:#fff;
+    font-family:inherit;
+    font-size:14px;
+    letter-spacing:1px;
     cursor:pointer;
+    box-shadow:0 4px 0 #0b1b6b;
+    transition:transform .05s ease;
+  }
+  .btn:active{transform:translateY(3px);box-shadow:0 1px 0 #0b1b6b;}
+  .btn.secondary{background:linear-gradient(180deg,#2a2f45,#151a2b);border-color:var(--purple);box-shadow:0 4px 0 #3a1f7a;}
+  .rules{
+    text-align:left;
+    font-size:11px;
+    color:var(--text-dim);
+    margin-top:16px;
+    line-height:1.5;
+    border-top:1px dashed var(--panel-border);
+    padding-top:12px;
+  }
+  .rules b{color:var(--cyan);}
 
+  /* ---------- GAME SCREEN ---------- */
+  #gameScreen{
+    width:100%;
+    height:100%;
+    flex-direction:column;
+    justify-content:flex-start;
+    background:var(--bg-dark);
+  }
+  #hud{
+    width:100%;
+    max-width:960px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:center;
+    padding:8px 10px;
+    background:var(--panel);
+    border-bottom:2px solid var(--panel-border);
+    font-size:11px;
+  }
+  .hud-item{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    background:#050912;
+    border:1px solid var(--panel-border);
+    padding:5px 8px;
+    white-space:nowrap;
+  }
+  .hud-label{color:var(--text-dim);}
+  #riskBarWrap{
+    flex:1;
+    min-width:140px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  #riskBarOuter{
+    flex:1;
+    height:14px;
+    background:#050912;
+    border:1px solid var(--panel-border);
+    position:relative;
+    overflow:hidden;
+  }
+  #riskBarInner{
+    height:100%;
+    width:50%;
+    background:var(--yellow);
+    transition:width .25s ease, background .25s ease;
+  }
+  #riskValue{font-size:11px;min-width:34px;text-align:right;}
+
+  #canvasWrap{
+    position:relative;
+    width:100%;
+    max-width:960px;
+    margin:0 auto;
+    flex:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+  }
+  #gameCanvas{
+    width:100%;
+    height:auto;
+    max-height:100%;
+    image-rendering:pixelated;
+    background:#0a0e18;
+    border:2px solid var(--panel-border);
+    display:block;
+  }
+
+  #interactHint{
+    position:absolute;
+    bottom:18px;
+    left:50%;
+    transform:translateX(-50%);
+    background:rgba(0,0,0,0.75);
+    border:1px solid var(--cyan);
+    color:var(--cyan);
+    padding:6px 12px;
+    font-size:12px;
+    display:none;
+    letter-spacing:1px;
+    animation:pulseHint 1s infinite;
+  }
+  @keyframes pulseHint{
+    0%,100%{opacity:1;}
+    50%{opacity:0.5;}
+  }
+
+  /* ---------- TOUCH CONTROLS ---------- */
+  #touchControls{
+    display:none;
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    z-index:20;
+  }
+  @media (hover:none) and (pointer:coarse){
+    #touchControls{display:block;}
+  }
+  .dpad{
+    position:absolute;
+    left:14px;
+    bottom:14px;
+    width:130px;
+    height:130px;
+    pointer-events:auto;
+  }
+  .dpad button{
+    position:absolute;
+    width:44px;
+    height:44px;
+    background:rgba(12,18,32,0.85);
+    border:2px solid var(--cyan);
+    color:var(--cyan);
+    font-size:18px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .dpad button:active{background:rgba(0,229,255,0.35);}
+  .dpad .up{top:0;left:43px;}
+  .dpad .down{bottom:0;left:43px;}
+  .dpad .left{left:0;top:43px;}
+  .dpad .right{right:0;top:43px;}
+
+  #interactBtn{
+    position:absolute;
+    right:18px;
+    bottom:22px;
+    width:74px;
+    height:74px;
+    border-radius:50%;
+    background:rgba(155,92,255,0.25);
+    border:2px solid var(--purple);
+    color:#fff;
+    font-size:11px;
+    pointer-events:auto;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    line-height:1.1;
+  }
+  #interactBtn.ready{
+    background:rgba(0,229,255,0.35);
+    border-color:var(--cyan);
+    box-shadow:0 0 16px rgba(0,229,255,0.7);
+  }
+  #interactBtn:active{transform:scale(0.94);}
+
+  /* ---------- MODAL ---------- */
+  #modalOverlay{
+    position:fixed;
+    inset:0;
+    background:rgba(2,4,10,0.85);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:500;
+    padding:16px;
+  }
+  #modalOverlay.active{display:flex;}
+  #questionModal{
+    width:100%;
+    max-width:520px;
+    background:var(--panel);
+    border:2px solid var(--cyan);
+    box-shadow:0 0 30px rgba(0,229,255,0.35);
+    padding:18px;
+    max-height:90vh;
+    overflow-y:auto;
+  }
+  .cat-tag{
+    display:inline-block;
+    font-size:10px;
+    letter-spacing:1px;
+    padding:3px 8px;
+    border:1px solid var(--purple);
+    color:var(--purple);
+    margin-bottom:10px;
+  }
+  #questionText{
+    font-size:13px;
+    line-height:1.6;
+    margin-bottom:16px;
+    color:var(--text);
+  }
+  .option-btn{
+    display:block;
+    width:100%;
+    text-align:left;
+    background:#050912;
+    border:2px solid var(--panel-border);
+    color:var(--text);
+    font-family:inherit;
+    font-size:12px;
+    padding:10px 12px;
+    margin-bottom:8px;
+    cursor:pointer;
+    line-height:1.4;
+  }
+  .option-btn:hover{border-color:var(--blue);}
+  .option-btn:active{transform:translateY(1px);}
+  .option-btn.correct{border-color:var(--green);background:rgba(57,255,138,0.12);color:var(--green);}
+  .option-btn.incorrect{border-color:var(--red);background:rgba(255,75,92,0.12);color:var(--red);}
+  .option-btn.disabled{pointer-events:none;opacity:0.85;}
+
+  #feedbackBanner{
+    text-align:center;
     font-size:16px;
+    padding:10px;
+    margin-top:6px;
+    display:none;
+    letter-spacing:1px;
+  }
+  #feedbackBanner.show{display:block;animation:pop .3s ease;}
+  @keyframes pop{
+    0%{transform:scale(0.8);opacity:0;}
+    100%{transform:scale(1);opacity:1;}
+  }
+  .fb-correct{color:var(--green);text-shadow:0 0 12px rgba(57,255,138,0.6);}
+  .fb-incorrect{color:var(--red);text-shadow:0 0 12px rgba(255,75,92,0.6);}
 
-    background:#374151;
-
-    color:white;
-
-}
-
-
-
-.answers button:hover{
-
-    background:#00ffff;
-
-    color:black;
-
-}
-
-
-
-#message{
-
-    margin-top:20px;
-
-    font-size:20px;
-
-}
-
-
-
+  /* ---------- FINAL SCREEN ---------- */
+  #finalScreen{
+    text-align:center;
+    padding:20px;
+  }
+  .final-box{
+    border:2px solid var(--cyan);
+    background:var(--panel);
+    padding:28px 24px;
+    box-shadow:0 0 30px rgba(0,229,255,0.4);
+    max-width:460px;
+    width:100%;
+  }
+  .final-title{
+    font-size:22px;
+    color:var(--yellow);
+    text-shadow:0 0 10px rgba(255,217,59,0.6);
+    margin-bottom:4px;
+  }
+  .final-name{color:var(--cyan);font-size:14px;margin-bottom:18px;}
+  .stat-row{
+    display:flex;
+    justify-content:space-between;
+    font-size:13px;
+    padding:8px 4px;
+    border-bottom:1px dashed var(--panel-border);
+  }
+  .stat-row span:first-child{color:var(--text-dim);}
+  .score-final{
+    font-size:24px;
+    color:var(--cyan);
+    margin:16px 0;
+    text-shadow:0 0 12px rgba(0,229,255,0.6);
+  }
+  #saveStatus{
+    font-size:10px;
+    color:var(--text-dim);
+    margin-top:10px;
+    min-height:14px;
+  }
 </style>
-
-
 </head>
-
-
-
 <body>
+<div class="scanlines"></div>
+<div id="app">
 
+  <!-- START SCREEN -->
+  <div id="startScreen" class="screen active">
+    <div class="title-box">
+      <div class="bug-icon">🐛</div>
+      <div class="glitch-title">BUG HUNTER QA</div>
+      <div class="subtitle">COMPATIBILIDAD // REGRESIÓN // SANITY TESTING</div>
+      <input type="text" id="playerNameInput" placeholder="Nombre del jugador" maxlength="20">
+      <button class="btn" id="startBtn">▶ COMENZAR MISIÓN</button>
+      <div class="rules">
+        <b>Objetivo:</b> Recorre el laboratorio, interactúa con las terminales y responde 13 preguntas de QA.<br>
+        <b>Riesgo:</b> Inicia en 50%. Baja -5% por acierto, sube +10% por error.<br>
+        <b>Controles PC:</b> WASD / Flechas para moverte, E para interactuar.<br>
+        <b>Controles móvil:</b> Usa el D-pad y el botón de interacción en pantalla.
+      </div>
+    </div>
+  </div>
 
-<div id="game">
+  <!-- GAME SCREEN -->
+  <div id="gameScreen" class="screen">
+    <div id="hud">
+      <div class="hud-item"><span class="hud-label">PREGUNTA</span> <span id="hudQuestionCount">0/13</span></div>
+      <div class="hud-item"><span class="hud-label">✅ CORRECTAS</span> <span id="hudCorrect">0</span></div>
+      <div class="hud-item"><span class="hud-label">🐞 BUGS</span> <span id="hudBugs">0</span></div>
+      <div id="riskBarWrap" class="hud-item">
+        <span class="hud-label">RIESGO</span>
+        <div id="riskBarOuter"><div id="riskBarInner"></div></div>
+        <span id="riskValue">50%</span>
+      </div>
+    </div>
 
+    <div id="canvasWrap">
+      <canvas id="gameCanvas" width="960" height="640"></canvas>
+      <div id="interactHint">PRESIONA <b>E</b> PARA INTERACTUAR</div>
 
-<h1>
-🐛 BUG HUNTER QA
-</h1>
+      <div id="touchControls">
+        <div class="dpad">
+          <button class="up" data-dir="up">▲</button>
+          <button class="down" data-dir="down">▼</button>
+          <button class="left" data-dir="left">◀</button>
+          <button class="right" data-dir="right">▶</button>
+        </div>
+        <div id="interactBtn">INTERACTUAR</div>
+      </div>
+    </div>
+  </div>
 
-
-
-<div class="stats">
-
-
-<div class="stat">
-
-Preguntas:
-
-<br>
-
-<span id="progress">
-
-0/13
-
-</span>
-
-</div>
-
-
-
-<div class="stat">
-
-Riesgo:
-
-<br>
-
-<span id="risk">
-
-50%
-
-</span>
-
-</div>
-
-
-
-<div class="stat">
-
-Bugs:
-
-<br>
-
-<span id="bugs">
-
-0
-
-</span>
-
-</div>
-
-
-
-</div>
-
-
-
-
-
-<div id="questionBox">
-
-
-<h2 id="question">
-
-Cargando prueba...
-
-</h2>
-
-
-<div class="answers" id="answers">
-
+  <!-- FINAL SCREEN -->
+  <div id="finalScreen" class="screen">
+    <div class="final-box">
+      <div class="final-title">🏆 MISIÓN COMPLETADA</div>
+      <div class="final-name" id="finalName">Jugador Anónimo</div>
+      <div class="stat-row"><span>Respuestas correctas</span><span id="finalCorrect">0 / 13</span></div>
+      <div class="stat-row"><span>Bugs encontrados</span><span id="finalBugs">0</span></div>
+      <div class="stat-row"><span>Riesgo final</span><span id="finalRisk">0%</span></div>
+      <div class="score-final">PUNTUACIÓN: <span id="finalScore">0</span></div>
+      <button class="btn secondary" id="restartBtn">🔁 JUGAR DE NUEVO</button>
+      <div id="saveStatus"></div>
+    </div>
+  </div>
 
 </div>
 
-
+<!-- QUESTION MODAL -->
+<div id="modalOverlay">
+  <div id="questionModal">
+    <div class="cat-tag" id="questionCategory">CATEGORÍA</div>
+    <div id="questionText"></div>
+    <div id="optionsContainer"></div>
+    <div id="feedbackBanner"></div>
+  </div>
 </div>
-
-
-
-<div id="message">
-
-
-</div>
-
-
-</div>
-
-
 
 <script>
+(function(){
+"use strict";
 
+/* =====================================================
+   0. CONFIGURACIÓN GOOGLE SHEETS (Google Apps Script)
+   ===================================================== */
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbz3bp_aTBIrTySqQJq9k-PfTDVlaPX6ikyZ68bN6mZH9okoh0XU8PMerM6B54mj4Cba/exec";
 
-
-// =====================================
-// BUG HUNTER QA
-// PARTE 2
-// BANCO DE PREGUNTAS QA
-// COMPATIBILIDAD + REGRESIÓN + SANITY TESTING
-// =====================================
-
-const questions = [
-
-//1
-{
-question:"Un equipo corrige un error en el módulo de autenticación. Después del cambio, el inicio de sesión funciona, pero la recuperación de contraseña comienza a fallar. ¿Qué prueba permite detectar que una modificación afectó funciones relacionadas?",
-
-answers:[
-"Compatibilidad",
-"Regresión",
-"Sanity Testing",
-"Rendimiento"
-],
-
-correct:1
-},
-
-//2
-{
-question:"Tras corregir un problema de visualización que solo ocurría en Safari, el equipo confirma rápidamente que la corrección funciona. Luego ejecuta los casos de prueba históricos para comprobar que ningún módulo fue afectado y finalmente valida la aplicación en Chrome, Edge y Firefox. ¿Cuál es el orden correcto de las pruebas realizadas?",
-
-answers:[
-"Compatibilidad → Sanity → Regresión",
-"Sanity → Regresión → Compatibilidad",
-"Regresión → Compatibilidad → Sanity",
-"Sanity → Compatibilidad → Regresión"
-],
-
-correct:1
-},
-
-//3
-{
-question:"Después de corregir un error crítico en producción, el equipo realiza una prueba rápida únicamente sobre la función modificada antes de continuar con pruebas completas. ¿Qué tipo de prueba está realizando?",
-
-answers:[
-"Regresión completa",
-"Sanity Testing",
-"Compatibilidad",
-"Prueba de estrés"
-],
-
-correct:1
-},
-
-//4
-{
-question:"Una aplicación funciona correctamente en Chrome, Firefox y Edge. Sin modificar el código, al ejecutarse en una versión antigua de Safari algunos componentes dejan de responder. ¿Cuál es la causa más probable?",
-
-answers:[
-"Problema de compatibilidad con el entorno",
-"Error de regresión",
-"Sanity Testing incompleto",
-"Fallo en pruebas unitarias"
-],
-
-correct:0
-},
-
-//5
-{
-question:"Un sistema financiero actualiza el cálculo de intereses. La nueva función funciona, pero los reportes antiguos muestran valores incorrectos. ¿Qué prueba habría detectado este problema?",
-
-answers:[
-"Compatibilidad",
-"Regresión",
-"Sanity Testing",
-"Interfaz gráfica"
-],
-
-correct:1
-},
-
-//6
-{
-question:"Un desarrollador cambia una función importante y ejecuta solamente una prueba rápida para confirmar que el sistema inicia. ¿Por qué esto NO reemplaza una prueba de regresión?",
-
-answers:[
-"Porque solo valida un cambio específico y no posibles efectos secundarios",
-"Porque la regresión siempre debe ser manual",
-"Porque Sanity Testing encuentra todos los errores",
-"Porque la compatibilidad reemplaza todas las pruebas"
-],
-
-correct:0
-},
-
-//7
-{
-question:"Una aplicación fue certificada para Windows 11. Posteriormente un cliente la instala en Linux mediante una capa de compatibilidad y aparecen errores que nunca se observaron durante el desarrollo. ¿Qué tipo de prueba habría permitido anticipar este escenario?",
-
-answers:[
-"Compatibilidad",
-"Regresión",
-"Sanity Testing",
-"Prueba exploratoria"
-],
-
-correct:0
-},
-
-//8
-{
-question:"Después de modificar el sistema de pagos, un equipo ejecuta automáticamente cientos de casos de prueba anteriores para verificar que ninguna función existente fue dañada. ¿Qué estrategia representa?",
-
-answers:[
-"Sanity Testing",
-"Regresión automatizada",
-"Compatibilidad manual",
-"Prueba exploratoria"
-],
-
-correct:1
-},
-
-//9
-{
-question:"Una aplicación funciona correctamente en Android 14, pero presenta errores de interfaz en Android 12 y en tablets, aun cuando ninguna funcionalidad fue modificada recientemente. ¿Qué atributo de calidad está siendo evaluado principalmente?",
-
-answers:[
-"Compatibilidad",
-"Regresión",
-"Sanity Testing",
-"Prueba de integración"
-],
-
-correct:0
-},
-
-//10
-{
-question:"Durante un Sanity Testing se descubre que una función principal continúa fallando después de una corrección. ¿Cuál debería ser la decisión del equipo?",
-
-answers:[
-"Continuar con todas las pruebas sin corregir",
-"Detener pruebas adicionales hasta solucionar el problema",
-"Publicar la versión inmediatamente",
-"Eliminar todas las pruebas anteriores"
-],
-
-correct:1
-},
-
-//11
-{
-question:"Una actualización corrige un error exclusivo de macOS. El arreglo funciona correctamente, pero antes de liberar la nueva versión el equipo debe comprobar que Windows y Linux continúan comportándose de la misma manera. ¿Qué objetivo persigue principalmente esta última verificación?",
-
-answers:[
-"Validar la compatibilidad entre plataformas",
-"Realizar un Sanity Testing",
-"Ejecutar pruebas unitarias",
-"Verificar el rendimiento"
-],
-
-correct:0
-},
-
-//12
-{
-question:"Una empresa quiere asegurar que una nueva versión no dañe módulos que no fueron modificados directamente. ¿Qué enfoque debe aplicar?",
-
-answers:[
-"Ejecutar pruebas de regresión",
-"Solo ejecutar Sanity Testing",
-"Eliminar pruebas anteriores",
-"Probar únicamente la nueva función"
-],
-
-correct:0
-},
-
-//13
-{
-question:"Después de corregir un error crítico, un ingeniero ejecuta primero una validación rápida sobre la corrección, luego verifica que funcionalidades relacionadas continúen operando y finalmente comprueba el comportamiento del sistema en distintos navegadores y sistemas operativos. ¿Cuál es la secuencia correcta?",
-
-answers:[
-"Compatibilidad → Regresión → Sanity Testing",
-"Sanity Testing → Regresión → Compatibilidad",
-"Regresión → Sanity Testing → Compatibilidad",
-"Sanity Testing → Compatibilidad → Regresión"
-],
-
-correct:1
+async function saveResult(data){
+  try{
+    if(!SHEET_URL || SHEET_URL.indexOf("PEGAR_URL") !== -1){
+      console.warn("SHEET_URL no configurada. Resultado no enviado a Google Sheets.");
+      return {ok:false, reason:"no_url"};
+    }
+    await fetch(SHEET_URL, {
+      method:"POST",
+      mode:"no-cors",
+      headers:{"Content-Type":"text/plain"},
+      body: JSON.stringify(data)
+    });
+    return {ok:true};
+  }catch(err){
+    console.warn("Fallo al guardar en Google Sheets:", err);
+    return {ok:false, reason:"network_error"};
+  }
 }
 
+/* =====================================================
+   1. DATOS DEL JUEGO: 13 PREGUNTAS
+   ===================================================== */
+const QUESTIONS = [
+  {
+    id:1, category:"COMPATIBILIDAD",
+    text:"Una app funciona bien en Chrome y Firefox en Windows, pero en macOS con Safari los campos de tipo fecha muestran un formato distinto que rompe la validación. ¿Qué debe verificarse primero?",
+    options:[
+      "Si el navegador respeta el formato de fecha del sistema y si el código asume un formato fijo",
+      "Si el servidor está caído en ese momento",
+      "Si el usuario tiene JavaScript deshabilitado",
+      "Si la base de datos tiene registros corruptos"
+    ], correct:0
+  },
+  {
+    id:2, category:"COMPATIBILIDAD",
+    text:"Un juego móvil corre a 60fps en un smartphone de gama alta, pero se congela en un dispositivo con 2GB de RAM y una versión antigua de Android. El equipo solo probó en emuladores potentes. ¿Qué brecha de compatibilidad faltó cubrir?",
+    options:[
+      "Compatibilidad de idioma de la interfaz",
+      "Compatibilidad de hardware y recursos reales en dispositivos de gama baja",
+      "Compatibilidad de zona horaria",
+      "Compatibilidad con impresoras conectadas"
+    ], correct:1
+  },
+  {
+    id:3, category:"COMPATIBILIDAD",
+    text:"Una API REST empieza a devolver error 415 solo para clientes que usan una versión antigua de una librería HTTP que no envía el header Content-Type por defecto. Los clientes modernos funcionan bien. ¿Cuál es la causa raíz más probable?",
+    options:[
+      "El dominio del servidor expiró",
+      "El navegador del cliente bloquea las cookies",
+      "La API ahora exige explícitamente ese header y los clientes viejos no lo generan automáticamente",
+      "La conexión a internet del cliente es inestable"
+    ], correct:2
+  },
+  {
+    id:4, category:"COMPATIBILIDAD",
+    text:"Una tienda en línea calcula precios correctamente en la mayoría de países, pero en una configuración regional que usa coma como separador decimal, el carrito muestra totales incorrectos. ¿Qué se debe probar?",
+    options:[
+      "La velocidad de la conexión a internet",
+      "El certificado SSL del sitio",
+      "La resolución de pantalla del usuario",
+      "El parseo de números según la configuración regional del navegador o sistema"
+    ], correct:3
+  },
+  {
+    id:5, category:"COMPATIBILIDAD",
+    text:"Un sitio se ve perfecto en monitores de 1920x1080, pero en una laptop con pantalla de alta densidad al 150% de escala, los botones quedan desalineados solo en un navegador específico. ¿Qué debe investigarse?",
+    options:[
+      "Cómo cada motor de renderizado maneja el escalado y los píxeles por unidad CSS",
+      "Si el usuario tiene un mouse inalámbrico",
+      "Si el servidor usa HTTPS",
+      "Si hay suficiente memoria RAM en el servidor"
+    ], correct:0
+  },
+  {
+    id:6, category:"COMPATIBILIDAD",
+    text:"Una app de escritorio funciona bien con teclado y mouse, pero al conectar una tableta gráfica como periférico, los eventos de clic se disparan dos veces. ¿Qué área de compatibilidad es responsable de este comportamiento?",
+    options:[
+      "Compatibilidad de idioma del sistema operativo",
+      "Compatibilidad con drivers y periféricos, y cómo el sistema traduce sus eventos",
+      "Compatibilidad con impresoras térmicas",
+      "Compatibilidad del formato de archivo exportado"
+    ], correct:1
+  },
+  {
+    id:7, category:"REGRESIÓN",
+    text:"Se corrige un bug en el módulo de carrito de compras. Las pruebas del carrito pasan, pero el módulo de cupones de descuento, que comparte una función de cálculo de totales, empieza a aplicar descuentos duplicados. ¿Qué se debió incluir en el plan de pruebas de regresión?",
+    options:[
+      "Solo repetir las pruebas del carrito una vez más",
+      "Pruebas sobre módulos que comparten dependencias con el código modificado, aunque no se hayan tocado directamente",
+      "Probar únicamente en un navegador distinto",
+      "Ignorar el módulo de cupones porque no se modificó su código"
+    ], correct:1
+  },
+  {
+    id:8, category:"REGRESIÓN",
+    text:"Tras optimizar una consulta SQL para mejorar el rendimiento del listado de productos, un reporte de ventas mensual que usa una lógica similar empieza a mostrar cifras distintas a las del mes anterior con los mismos datos. ¿Qué se debe sospechar primero?",
+    options:[
+      "Que la optimización cambió el comportamiento de la consulta y afectó a otro reporte que reutiliza lógica similar",
+      "Que el usuario cambió su contraseña",
+      "Que el navegador tiene caché desactualizada",
+      "Que el logo de la empresa cambió recientemente"
+    ], correct:0
+  },
+  {
+    id:9, category:"REGRESIÓN",
+    text:"Un equipo actualiza la librería de manejo de fechas para corregir un bug de zona horaria. Las pruebas de facturación pasan, pero los recordatorios automáticos por correo ahora se envían un día antes de lo esperado. ¿Cuál es el enfoque correcto de regresión en este caso?",
+    options:[
+      "Revisar solo el módulo de facturación porque fue el que se probó originalmente",
+      "Suponer que el problema es del proveedor de correo externo",
+      "Identificar todos los módulos que dependen de la librería de fechas, no solo el relacionado con el bug original",
+      "Ignorar el problema porque los recordatorios no son críticos"
+    ], correct:2
+  },
+  {
+    id:10, category:"REGRESIÓN",
+    text:"Un parche de seguridad cambia cómo se sanitizan los inputs de formularios. Las pruebas del formulario de contacto pasan, pero el módulo de búsqueda interna empieza a devolver resultados vacíos para términos con caracteres especiales. ¿Qué explica este efecto secundario?",
+    options:[
+      "El servidor de búsqueda está ubicado en otro país",
+      "Ambos módulos probablemente comparten la misma función de sanitización, y el cambio afectó cómo se procesan los caracteres especiales",
+      "El usuario no tiene permisos suficientes",
+      "La base de datos se quedó sin espacio de almacenamiento"
+    ], correct:1
+  },
+  {
+    id:11, category:"SANITY TESTING",
+    text:"Después de un despliegue de emergencia para corregir un error crítico en el login, el equipo tiene solo 15 minutos antes del lanzamiento. ¿Qué enfoque de sanity testing es más apropiado?",
+    options:[
+      "Ejecutar la suite completa de regresión de 3 horas",
+      "No probar nada porque ya se corrigió el código",
+      "Verificar rápidamente que el login reparado funciona y que las rutas críticas cercanas no se rompieron, sin ejecutar toda la regresión",
+      "Probar únicamente el diseño visual del botón de login"
+    ], correct:2
+  },
+  {
+    id:12, category:"SANITY TESTING",
+    text:"Durante un sanity test posterior a un despliegue, el tester nota que una funcionalidad secundaria, no relacionada con el cambio desplegado, parece tener un comportamiento extraño. ¿Cuál es la decisión correcta según el alcance del sanity testing?",
+    options:[
+      "Anotar el hallazgo para investigarlo después, sin expandir el sanity test actual, ya que su alcance es validar el cambio específico",
+      "Detener el sanity test y hacer una regresión completa de inmediato",
+      "Ignorar el hallazgo por completo y no reportarlo nunca",
+      "Revertir el despliegue automáticamente sin más análisis"
+    ], correct:0
+  },
+  {
+    id:13, category:"SANITY TESTING",
+    text:"Un build nuevo llega a QA con muy poco tiempo antes de una demo importante. Al hacer sanity testing, el tester descubre que la aplicación ni siquiera abre correctamente. ¿Qué debe pasar según los criterios de sanity testing?",
+    options:[
+      "Continuar probando otras funciones para ver si al menos algo funciona",
+      "Reportar que el build pasó todas las pruebas igualmente",
+      "Esperar a que el problema se resuelva solo",
+      "Detener las pruebas de inmediato y rechazar el build, ya que no cumple el criterio mínimo de estabilidad"
+    ], correct:3
+  }
 ];
 
+/* =====================================================
+   2. ZONAS Y TERMINALES (puntos de interacción)
+   ===================================================== */
+const MAP_W = 960, MAP_H = 640;
 
-// =====================================
-// VARIABLES DEL JUEGO
-// =====================================
+const ZONES = [
+  {name:"ZONA DE AUTENTICACIÓN", x:10, y:10, w:300, h:290, color:"rgba(59,109,255,0.10)"},
+  {name:"ZONA DE SERVIDORES",    x:330, y:10, w:300, h:290, color:"rgba(155,92,255,0.10)"},
+  {name:"ZONA DE NAVEGADORES",   x:650, y:10, w:300, h:290, color:"rgba(0,229,255,0.10)"},
+  {name:"ZONA MÓVIL",            x:10, y:340, w:300, h:290, color:"rgba(0,229,255,0.10)"},
+  {name:"ZONA DE INTEGRACIÓN",   x:330, y:340, w:300, h:290, color:"rgba(155,92,255,0.10)"},
+  {name:"ZONA FINAL",            x:650, y:340, w:300, h:290, color:"rgba(255,75,92,0.10)"}
+];
 
-let currentQuestion = 0;
-let risk = 50;
-let bugs = 0;
-let correctAnswers = 0;
+const ICONS = {"COMPATIBILIDAD":"🖥️","REGRESIÓN":"🔗","SANITY TESTING":"🧪"};
 
-// =====================================
-// BUG HUNTER QA
-// PARTE 3
-// MOTOR DEL JUEGO
-// =====================================
+const TERMINALS = [
+  {x:100,  y:90,  q:0},
+  {x:220,  y:210, q:9},
+  {x:420,  y:90,  q:6},
+  {x:540,  y:210, q:7},
+  {x:420,  y:250, q:8},
+  {x:740,  y:90,  q:2},
+  {x:860,  y:210, q:4},
+  {x:100,  y:420, q:1},
+  {x:220,  y:540, q:5},
+  {x:420,  y:420, q:3},
+  {x:540,  y:540, q:10},
+  {x:740,  y:420, q:11},
+  {x:860,  y:540, q:12}
+].map((t,i)=>({id:i, x:t.x, y:t.y, questionIndex:t.q, resolved:false}));
 
+const OBSTACLES = [
+  {x:305, y:120, w:20, h:120},
+  {x:625, y:120, w:20, h:120},
+  {x:305, y:400, w:20, h:120},
+  {x:625, y:400, w:20, h:120},
+  {x:150, y:290, w:120, h:20},
+  {x:690, y:290, w:120, h:20}
+];
 
-// ELEMENTOS DE LA INTERFAZ
+/* =====================================================
+   3. ESTADO DEL JUEGO
+   ===================================================== */
+const state = {
+  playerName:"Jugador Anónimo",
+  x: 60, y: 60,
+  radius: 13,
+  speed: 3.4,
+  keys:{up:false,down:false,left:false,right:false},
+  risk:50,
+  bugs:0,
+  correct:0,
+  answered:0,
+  paused:false,
+  nearTerminal:null,
+  finished:false
+};
 
-const questionElement = document.getElementById("question");
-const answersElement = document.getElementById("answers");
-const progressElement = document.getElementById("progress");
-const riskElement = document.getElementById("risk");
-const bugsElement = document.getElementById("bugs");
-const messageElement = document.getElementById("message");
+/* =====================================================
+   4. REFERENCIAS DOM
+   ===================================================== */
+const startScreen = document.getElementById("startScreen");
+const gameScreen = document.getElementById("gameScreen");
+const finalScreen = document.getElementById("finalScreen");
+const playerNameInput = document.getElementById("playerNameInput");
+const startBtn = document.getElementById("startBtn");
+const restartBtn = document.getElementById("restartBtn");
 
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
+const hudQuestionCount = document.getElementById("hudQuestionCount");
+const hudCorrect = document.getElementById("hudCorrect");
+const hudBugs = document.getElementById("hudBugs");
+const riskBarInner = document.getElementById("riskBarInner");
+const riskValue = document.getElementById("riskValue");
+const interactHint = document.getElementById("interactHint");
+const interactBtn = document.getElementById("interactBtn");
 
+const modalOverlay = document.getElementById("modalOverlay");
+const questionCategory = document.getElementById("questionCategory");
+const questionText = document.getElementById("questionText");
+const optionsContainer = document.getElementById("optionsContainer");
+const feedbackBanner = document.getElementById("feedbackBanner");
 
-// =====================================
-// MOSTRAR PREGUNTA
-// =====================================
+const finalName = document.getElementById("finalName");
+const finalCorrect = document.getElementById("finalCorrect");
+const finalBugs = document.getElementById("finalBugs");
+const finalRisk = document.getElementById("finalRisk");
+const finalScore = document.getElementById("finalScore");
+const saveStatus = document.getElementById("saveStatus");
 
-function loadQuestion(){
-
-    let q = questions[currentQuestion];
-
-
-    questionElement.innerHTML = q.question;
-
-
-    answersElement.innerHTML = "";
-
-
-    q.answers.forEach((answer,index)=>{
-
-
-        let button = document.createElement("button");
-
-
-        button.innerHTML = answer;
-
-
-        button.onclick = function(){
-
-            checkAnswer(index);
-
-        };
-
-
-        answersElement.appendChild(button);
-
-
-    });
-
-
-
-    progressElement.innerHTML =
-    (currentQuestion + 1) + "/13";
-
-
+/* =====================================================
+   5. NAVEGACIÓN ENTRE PANTALLAS
+   ===================================================== */
+function showScreen(el){
+  [startScreen, gameScreen, finalScreen].forEach(s=>s.classList.remove("active"));
+  el.classList.add("active");
 }
 
+startBtn.addEventListener("click", ()=>{
+  const val = playerNameInput.value.trim();
+  state.playerName = val.length ? val.slice(0,20) : "Jugador Anónimo";
+  showScreen(gameScreen);
+  requestAnimationFrame(loop);
+});
 
+restartBtn.addEventListener("click", ()=>{
+  window.location.reload();
+});
 
-// =====================================
-// COMPROBAR RESPUESTA
-// =====================================
+/* =====================================================
+   6. INPUT: TECLADO
+   ===================================================== */
+window.addEventListener("keydown",(e)=>{
+  if(state.paused) {
+    if((e.key === "e" || e.key === "E") ) tryInteract();
+    return;
+  }
+  switch(e.key){
+    case "w": case "W": case "ArrowUp": state.keys.up = true; break;
+    case "s": case "S": case "ArrowDown": state.keys.down = true; break;
+    case "a": case "A": case "ArrowLeft": state.keys.left = true; break;
+    case "d": case "D": case "ArrowRight": state.keys.right = true; break;
+    case "e": case "E": tryInteract(); break;
+  }
+});
+window.addEventListener("keyup",(e)=>{
+  switch(e.key){
+    case "w": case "W": case "ArrowUp": state.keys.up = false; break;
+    case "s": case "S": case "ArrowDown": state.keys.down = false; break;
+    case "a": case "A": case "ArrowLeft": state.keys.left = false; break;
+    case "d": case "D": case "ArrowRight": state.keys.right = false; break;
+  }
+});
 
-function checkAnswer(selected){
+/* =====================================================
+   7. INPUT: TÁCTIL (D-PAD Y BOTÓN INTERACTUAR)
+   ===================================================== */
+document.querySelectorAll(".dpad button").forEach(btn=>{
+  const dir = btn.getAttribute("data-dir");
+  const setDir = (val)=>{ if(!state.paused) state.keys[dir] = val; };
+  btn.addEventListener("pointerdown",(e)=>{e.preventDefault(); setDir(true);});
+  btn.addEventListener("pointerup",(e)=>{e.preventDefault(); setDir(false);});
+  btn.addEventListener("pointerleave",(e)=>{ setDir(false);});
+  btn.addEventListener("pointercancel",(e)=>{ setDir(false);});
+});
 
+interactBtn.addEventListener("pointerdown",(e)=>{
+  e.preventDefault();
+  tryInteract();
+});
 
-    let q = questions[currentQuestion];
+/* =====================================================
+   8. LÓGICA DE MOVIMIENTO Y COLISIONES
+   ===================================================== */
+function rectsOverlap(ax,ay,aw,ah,bx,by,bw,bh){
+  return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by;
+}
 
+function canMoveTo(nx, ny){
+  const r = state.radius;
+  if(nx - r < 0 || nx + r > MAP_W || ny - r < 0 || ny + r > MAP_H) return false;
+  for(const o of OBSTACLES){
+    if(rectsOverlap(nx-r, ny-r, r*2, r*2, o.x, o.y, o.w, o.h)) return false;
+  }
+  return true;
+}
 
-    // GUARDAR RESPUESTAS CORRECTAS
-    if(selected === q.correct){
+function updatePlayer(){
+  if(state.paused || state.finished) return;
+  let dx = 0, dy = 0;
+  if(state.keys.up) dy -= 1;
+  if(state.keys.down) dy += 1;
+  if(state.keys.left) dx -= 1;
+  if(state.keys.right) dx += 1;
+  if(dx !== 0 && dy !== 0){ dx *= 0.7071; dy *= 0.7071; }
 
-        correctAnswers++;
+  const nx = state.x + dx * state.speed;
+  const ny = state.y + dy * state.speed;
 
-        messageElement.innerHTML =
-        "✅ BUG ELIMINADO";
+  if(canMoveTo(nx, state.y)) state.x = nx;
+  if(canMoveTo(state.x, ny)) state.y = ny;
 
-        risk -= 5;
+  updateNearTerminal();
+}
 
-
-        if(risk < 0){
-
-            risk = 0;
-
-        }
-
-
+function updateNearTerminal(){
+  let closest = null;
+  let closestDist = 42;
+  for(const t of TERMINALS){
+    if(t.resolved) continue;
+    const dist = Math.hypot(state.x - t.x, state.y - t.y);
+    if(dist < closestDist){
+      closest = t;
+      closestDist = dist;
     }
+  }
+  state.nearTerminal = closest;
+  interactHint.style.display = closest ? "block" : "none";
+  interactBtn.classList.toggle("ready", !!closest);
+}
 
-    else{
+/* =====================================================
+   9. RENDERIZADO (CANVAS)
+   ===================================================== */
+function draw(time){
+  ctx.clearRect(0,0,MAP_W,MAP_H);
 
+  // fondo
+  ctx.fillStyle = "#0a0e18";
+  ctx.fillRect(0,0,MAP_W,MAP_H);
 
-        messageElement.innerHTML =
-        "❌ ERROR ENCONTRADO";
+  // zonas
+  ZONES.forEach(z=>{
+    ctx.fillStyle = z.color;
+    ctx.fillRect(z.x, z.y, z.w, z.h);
+    ctx.strokeStyle = "rgba(255,255,255,0.08)";
+    ctx.strokeRect(z.x, z.y, z.w, z.h);
+    ctx.fillStyle = "rgba(232,241,255,0.55)";
+    ctx.font = "11px monospace";
+    ctx.fillText(z.name, z.x + 8, z.y + 16);
+  });
 
+  // obstáculos
+  ctx.fillStyle = "#1e2a44";
+  OBSTACLES.forEach(o=>{
+    ctx.fillRect(o.x, o.y, o.w, o.h);
+    ctx.strokeStyle = "#3b6dff";
+    ctx.strokeRect(o.x, o.y, o.w, o.h);
+  });
 
-        bugs++;
-
-        risk += 10;
-
-
+  // terminales
+  const pulse = 0.5 + 0.5 * Math.sin(time / 220);
+  TERMINALS.forEach(t=>{
+    const size = 26;
+    if(t.resolved){
+      ctx.fillStyle = "rgba(57,255,138,0.25)";
+      ctx.strokeStyle = "#39ff8a";
+    } else if(state.nearTerminal === t){
+      ctx.fillStyle = `rgba(0,229,255,${0.25 + pulse*0.25})`;
+      ctx.strokeStyle = "#00e5ff";
+    } else {
+      ctx.fillStyle = "rgba(0,229,255,0.12)";
+      ctx.strokeStyle = "#3b6dff";
     }
+    ctx.lineWidth = 2;
+    ctx.fillRect(t.x - size/2, t.y - size/2, size, size);
+    ctx.strokeRect(t.x - size/2, t.y - size/2, size, size);
 
+    ctx.font = "14px monospace";
+    ctx.textAlign = "center";
+    const icon = t.resolved ? "✔" : ICONS[QUESTIONS[t.questionIndex].category];
+    ctx.fillStyle = t.resolved ? "#39ff8a" : "#e8f1ff";
+    ctx.fillText(icon, t.x, t.y + 5);
+    ctx.textAlign = "left";
+  });
 
-
-    updateStats();
-
-
-
-    setTimeout(()=>{
-
-
-        nextQuestion();
-
-
-    },1000);
-
-
-
+  // jugador
+  ctx.beginPath();
+  ctx.arc(state.x, state.y, state.radius, 0, Math.PI*2);
+  ctx.fillStyle = "#00e5ff";
+  ctx.shadowColor = "#00e5ff";
+  ctx.shadowBlur = 12;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = "#e8f1ff";
+  ctx.lineWidth = 2;
+  ctx.stroke();
 }
 
+/* =====================================================
+   10. BUCLE PRINCIPAL
+   ===================================================== */
+function loop(time){
+  if(state.finished) return;
+  updatePlayer();
+  draw(time);
+  requestAnimationFrame(loop);
+}
 
+/* =====================================================
+   11. INTERACCIÓN Y PREGUNTAS
+   ===================================================== */
+let currentTerminal = null;
 
+function tryInteract(){
+  if(state.paused || state.finished) return;
+  if(!state.nearTerminal) return;
+  openQuestion(state.nearTerminal);
+}
 
-// =====================================
-// SIGUIENTE PREGUNTA
-// =====================================
+function openQuestion(terminal){
+  currentTerminal = terminal;
+  state.paused = true;
+  state.keys = {up:false,down:false,left:false,right:false};
 
-function nextQuestion(){
+  const q = QUESTIONS[terminal.questionIndex];
+  questionCategory.textContent = q.category;
+  questionText.textContent = q.text;
+  optionsContainer.innerHTML = "";
+  feedbackBanner.className = "";
+  feedbackBanner.textContent = "";
 
+  q.options.forEach((optText, idx)=>{
+    const btn = document.createElement("button");
+    btn.className = "option-btn";
+    btn.textContent = optText;
+    btn.addEventListener("click", ()=> answerQuestion(idx, q, btn));
+    optionsContainer.appendChild(btn);
+  });
 
-    currentQuestion++;
+  modalOverlay.classList.add("active");
+}
 
+function answerQuestion(selectedIdx, q, clickedBtn){
+  const allButtons = optionsContainer.querySelectorAll(".option-btn");
+  allButtons.forEach(b => b.classList.add("disabled"));
 
-    if(currentQuestion >= questions.length){
+  const isCorrect = selectedIdx === q.correct;
 
+  if(isCorrect){
+    clickedBtn.classList.add("correct");
+    state.risk = Math.max(0, state.risk - 5);
+    state.correct += 1;
+    feedbackBanner.textContent = "✅ BUG ELIMINADO";
+    feedbackBanner.className = "show fb-correct";
+  } else {
+    clickedBtn.classList.add("incorrect");
+    allButtons[q.correct].classList.add("correct");
+    state.risk = Math.min(100, state.risk + 10);
+    state.bugs += 1;
+    feedbackBanner.textContent = "❌ ERROR ENCONTRADO";
+    feedbackBanner.className = "show fb-incorrect";
+  }
 
-        finishGame();
+  currentTerminal.resolved = true;
+  state.answered += 1;
+  updateHUD();
 
+  setTimeout(()=>{
+    modalOverlay.classList.remove("active");
+    state.paused = false;
 
-        return;
-
+    if(state.answered >= QUESTIONS.length){
+      finishGame();
+    } else {
+      updateNearTerminal();
     }
-
-
-    loadQuestion();
-
-
+  }, 1200);
 }
 
+/* =====================================================
+   12. HUD
+   ===================================================== */
+function updateHUD(){
+  hudQuestionCount.textContent = state.answered + "/" + QUESTIONS.length;
+  hudCorrect.textContent = state.correct;
+  hudBugs.textContent = state.bugs;
+  riskValue.textContent = Math.round(state.risk) + "%";
+  riskBarInner.style.width = state.risk + "%";
 
-
-
-// =====================================
-// ACTUALIZAR ESTADÍSTICAS
-// =====================================
-
-function updateStats(){
-
-
-    riskElement.innerHTML =
-    risk + "%";
-
-
-    bugsElement.innerHTML =
-    bugs;
-
-
+  let color = "#ffd93b";
+  if(state.risk <= 33) color = "#39ff8a";
+  else if(state.risk > 66) color = "#ff4b5c";
+  riskBarInner.style.background = color;
 }
 
-
-
-
-// =====================================
-// FINAL DEL JUEGO
-// =====================================
-
+/* =====================================================
+   13. FIN DEL JUEGO
+   ===================================================== */
 function finishGame(){
+  state.finished = true;
+  interactHint.style.display = "none";
 
+  const score = Math.max(0, Math.round(
+    state.correct * 100 - state.bugs * 25 - state.risk
+  ));
 
-    questionElement.innerHTML =
-    "🏆 MISIÓN COMPLETADA";
+  finalName.textContent = state.playerName;
+  finalCorrect.textContent = state.correct + " / " + QUESTIONS.length;
+  finalBugs.textContent = state.bugs;
+  finalRisk.textContent = Math.round(state.risk) + "%";
+  finalScore.textContent = score;
 
+  showScreen(finalScreen);
 
-    answersElement.innerHTML = "";
+  const payload = {
+    nombre: state.playerName,
+    fecha: new Date().toISOString(),
+    respuestasCorrectas: state.correct,
+    bugsEncontrados: state.bugs,
+    riesgoFinal: Math.round(state.risk),
+    resultado: state.risk <= 33 ? "APROBADO" : (state.risk <= 66 ? "ACEPTABLE" : "CRÍTICO"),
+    puntuacion: score
+  };
 
-
-    messageElement.innerHTML =
-
-    "Pruebas QA finalizadas.<br><br>" +
-
-    "Respuestas correctas: " + correctAnswers +
-
-    "<br>" +
-
-    "Bugs encontrados: " + bugs +
-
-    "<br>" +
-
-    "Riesgo final: " + risk + "%";
-
-
-
-    // GUARDAR EN GOOGLE SHEETS
-
-    saveResult("COMPLETADO");
-
-
-}
-
-// =====================================
-// BUG HUNTER QA
-// PARTE 4
-// SISTEMA VISUAL Y EFECTOS
-// =====================================
-
-
-// CREAR BARRA DE RIESGO
-
-
-const riskBar = document.createElement("div");
-
-
-riskBar.style.width = "100%";
-riskBar.style.height = "20px";
-riskBar.style.background = "#333";
-riskBar.style.borderRadius = "10px";
-riskBar.style.marginTop = "15px";
-riskBar.style.overflow = "hidden";
-
-
-
-const riskFill = document.createElement("div");
-
-
-riskFill.style.height = "100%";
-riskFill.style.width = "50%";
-riskFill.style.background = "orange";
-riskFill.style.transition = "0.5s";
-
-
-
-riskBar.appendChild(riskFill);
-
-
-
-document
-.querySelector(".stats")
-.after(riskBar);
-
-
-
-
-
-// =====================================
-// ACTUALIZAR BARRA
-// =====================================
-
-
-function updateRiskBar(){
-
-
-    riskFill.style.width = risk + "%";
-
-
-
-    if(risk >= 80){
-
-
-        riskFill.style.background = "red";
-
-
+  saveStatus.textContent = "Guardando resultado...";
+  saveResult(payload).then(res=>{
+    if(res && res.ok){
+      saveStatus.textContent = "Resultado guardado en Google Sheets.";
+    } else {
+      saveStatus.textContent = "No se pudo guardar en línea (modo sin conexión). El resultado se muestra igual.";
     }
-
-    else if(risk >= 50){
-
-
-        riskFill.style.background = "orange";
-
-
-    }
-
-    else{
-
-
-        riskFill.style.background = "lime";
-
-
-    }
-
-
+  });
 }
 
-
-
-
-// =====================================
-// MODIFICAR UPDATE STATS
-// =====================================
-
-
-const oldUpdateStats = updateStats;
-
-
-
-updateStats = function(){
-
-
-
-    oldUpdateStats();
-
-
-
-    updateRiskBar();
-
-
-
-};
-
-
-
-
-
-// =====================================
-// EFECTO DE MENSAJE
-// =====================================
-
-
-function showMessage(text,color){
-
-
-
-    messageElement.innerHTML = text;
-
-
-
-    messageElement.style.color = color;
-
-
-
-    setTimeout(()=>{
-
-
-        messageElement.style.color="white";
-
-
-    },800);
-
-
-
-}
-
-
-
-
-
-// =====================================
-// MODIFICAR RESPUESTAS
-// =====================================
-
-
-const oldCheckAnswer = checkAnswer;
-
-
-
-checkAnswer = function(selected){
-
-
-
-    let q = questions[currentQuestion];
-
-
-
-    if(selected === q.correct){
-
-
-
-        showMessage(
-        "✅ BUG ELIMINADO",
-        "lime"
-        );
-
-
-
-    }
-
-    else{
-
-
-
-        showMessage(
-        "❌ ERROR ENCONTRADO",
-        "red"
-        );
-
-
-
-    }
-
-
-
-    oldCheckAnswer(selected);
-
-
-
-};
-
-// =====================================
-// BUG HUNTER QA
-// PARTE 5
-// MENÚ INICIAL
-// =====================================
-
-
-// CREAR PANTALLA INICIAL
-
-const startScreen = document.createElement("div");
-
-
-startScreen.style.position = "absolute";
-startScreen.style.top = "0";
-startScreen.style.left = "0";
-startScreen.style.width = "100%";
-startScreen.style.height = "100%";
-startScreen.style.background = "#111827";
-startScreen.style.display = "flex";
-startScreen.style.flexDirection = "column";
-startScreen.style.justifyContent = "center";
-startScreen.style.alignItems = "center";
-startScreen.style.zIndex = "10";
-
-
-
-startScreen.innerHTML = `
-
-
-<h1 style="
-color:#00ffff;
-font-size:40px;
-margin-bottom:20px;
-">
-🐛 BUG HUNTER QA
-</h1>
-
-
-
-<p style="
-font-size:20px;
-text-align:center;
-max-width:500px;
-">
-
-Elimina errores del software respondiendo pruebas de calidad.
-
-<br><br>
-
-Completa las 13 pruebas antes de que el sistema colapse.
-
-</p>
-
-
-
-<button id="startButton" style="
-
-margin-top:30px;
-padding:15px 40px;
-font-size:22px;
-border:none;
-border-radius:15px;
-cursor:pointer;
-background:#00ffff;
-color:black;
-
-">
-
-▶ INICIAR MISIÓN
-
-</button>
-
-
-`;
-
-
-
-document.body.appendChild(startScreen);
-
-
-
-
-
-// =====================================
-// BOTÓN DE INICIO CORREGIDO
-// =====================================
-
-
-document
-.getElementById("startButton")
-.onclick = function(){
-
-
-    startScreen.style.display="none";
-
-
-    // Inicia correctamente:
-    // - pide nombre
-    // - reinicia variables
-    // - carga primera pregunta
-
-    startGame();
-
-
-};
-
-// =====================================
-// BUG HUNTER QA
-// PARTE 6
-// SISTEMA DE USUARIO + GOOGLE SHEETS
-// =====================================
-
-
-
-// =====================================
-// DATOS DEL JUGADOR
-// =====================================
-
-
-let playerName = "";
-
-
-
-
-
-// =====================================
-// CONEXIÓN GOOGLE SHEETS
-// =====================================
-
-
-const sheetURL = 
-"https://script.google.com/macros/s/AKfycbyCyveLXiYH6_9LZKRSKspQdOQW37UH7hdVIM57XpFsQ-mbzogXbzvkc9s3jOPSbA/exec";
-
-
-
-
-
-// =====================================
-// PEDIR NOMBRE
-// =====================================
-
-
-function askPlayerName(){
-
-
-    playerName = prompt(
-        "🐛 Escribe tu nombre para iniciar BUG HUNTER QA:"
-    );
-
-
-    if(
-        playerName === null ||
-        playerName.trim() === ""
-    ){
-
-        playerName = "Jugador Anónimo";
-
-    }
-
-
-}
-
-
-
-
-
-
-// =====================================
-// GUARDAR RESULTADO EN GOOGLE SHEETS
-// =====================================
-
-
-function saveResult(resultado){
-
-
-
-    const data = {
-
-
-        nombre: playerName,
-
-
-        fecha:
-        new Date().toLocaleString(),
-
-
-        correctas:
-        correctAnswers,
-
-
-        bugs:
-        bugs,
-
-
-        riesgo:
-        risk,
-
-
-        resultado:
-        resultado
-
-
-
-    };
-
-
-
-
-
-
-    fetch(sheetURL,{
-
-
-        method:"POST",
-
-
-        mode:"no-cors",
-
-
-        headers:{
-
-
-            "Content-Type":
-            "application/json"
-
-        },
-
-
-        body:
-        JSON.stringify(data)
-
-
-
-    })
-
-    .then(()=>{
-
-
-        console.log(
-            "Datos enviados a Google Sheets"
-        );
-
-
-    })
-
-    .catch(error=>{
-
-
-        console.log(
-            "Error enviando datos:",
-            error
-        );
-
-
-    });
-
-
-
-}
-
-
-
-
-
-
-// =====================================
-// INICIO DEL JUEGO
-// =====================================
-
-
-function startGame(){
-
-
-
-    askPlayerName();
-
-
-
-    currentQuestion = 0;
-
-
-    risk = 50;
-
-
-    bugs = 0;
-
-
-    correctAnswers = 0;
-
-
-
-    updateStats();
-
-
-    loadQuestion();
-
-
-
-}
-
-
-
-
-
-
-// =====================================
-// CONTADOR DE RESPUESTAS CORRECTAS
-// =====================================
-
-
-
-function registerAnswer(selected){
-
-
-
-    let question =
-    questions[currentQuestion];
-
-
-
-    if(
-        selected === question.correct
-    ){
-
-
-        correctAnswers++;
-
-
-    }
-
-
-}
-
-
-
-
-
-
-// =====================================
-// VICTORIA
-// =====================================
-
-
-function victory(){
-
-
-
-    saveResult(
-        "GANÓ"
-    );
-
-
-
-    document.getElementById("message").innerHTML =
-
-    `
-    🏆 SISTEMA VALIDADO
-    <br>
-    Todas las pruebas QA completadas.
-    `;
-
-
-
-}
-
-
-
-
-
-
-// =====================================
-// DERROTA
-// =====================================
-
-
-function gameOver(){
-
-
-
-    saveResult(
-        "PERDIÓ"
-    );
-
-
-
-    document.getElementById("message").innerHTML =
-
-    `
-    💥 SISTEMA COLAPSADO
-    <br>
-    Demasiados bugs encontrados.
-    `;
-
-
-
-}
-
-
+/* =====================================================
+   14. INICIALIZACIÓN
+   ===================================================== */
+updateHUD();
+draw(0);
+
+})();
 </script>
-
-
 </body>
-
-
 </html>
